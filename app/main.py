@@ -359,6 +359,10 @@ def init_session_state():
     if "annotation_mode" not in st.session_state:
         st.session_state.annotation_mode = "view"
 
+    # Track which dialog is open (to persist across reruns)
+    if "open_dialog_turn_id" not in st.session_state:
+        st.session_state.open_dialog_turn_id = None
+
     # Agent configuration
     if "agent_config" not in st.session_state:
         st.session_state.agent_config = {
@@ -581,16 +585,233 @@ def load_existing_annotations(conversation):
             }
 
 
-# ============== Render Functions ==============
+# ============== UI Components ==============
 
 
-def render_turn_with_highlights(turn, schema, show_annotations=True):
-    """Render a conversation turn with highlighted annotations."""
+@st.dialog("Annotate Turn", width="large")
+def annotation_dialog(turn, schema, conversation):
+    """Modal dialog for annotating a single turn."""
+    turn_id = turn["turn_id"]
+    speaker = turn["speaker"]
+    text = turn["text"]
+
+    # Header
+    speaker_icon = "🧑‍🦱" if speaker == "patient" else "👨‍⚕️"
+    st.markdown(f"### {speaker_icon} {speaker.title()} - Turn {turn_id}")
+
+    # Display the turn text
+    st.markdown(
+        f'<div class="selectable-text" style="background: #1a1a2e; padding: 15px; border-radius: 10px; margin: 10px 0; font-size: 1.1em; line-height: 1.8;">{text}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Two columns: Annotation tools | AI Suggestions
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        st.markdown("#### ✏️ Manual Annotation")
+
+        # Text selection input
+        selected_text = st.text_input(
+            "Select text to annotate:",
+            key=f"modal_text_{turn_id}",
+            placeholder="Copy and paste text from above...",
+        )
+
+        if selected_text:
+            if selected_text in text:
+                start_idx = text.find(selected_text)
+                st.success(f"✓ Found at position {start_idx}")
+
+                # Label selection - simplified
+                st.markdown("**Choose label:**")
+
+                # Filter labels based on speaker
+                if speaker == "patient":
+                    label_groups = {
+                        "Feelings": ["explicit_feeling", "implicit_feeling"],
+                        "Appreciation": ["explicit_appreciation", "implicit_appreciation"],
+                        "Judgement": ["explicit_judgement", "implicit_judgement"],
+                    }
+                else:
+                    label_groups = {
+                        "Elicitations": [
+                            "direct_elicitation_feeling", "indirect_elicitation_feeling",
+                            "direct_elicitation_appreciation", "indirect_elicitation_appreciation",
+                            "direct_elicitation_judgement", "indirect_elicitation_judgement",
+                        ],
+                        "Acceptance": [
+                            "acceptance_positive_regard_explicit_judgement",
+                            "acceptance_positive_regard_implicit_judgement",
+                            "acceptance_positive_regard_repetition",
+                            "acceptance_positive_regard_allowing",
+                            "acceptance_neutral_support_appreciation",
+                            "acceptance_neutral_support_judgement",
+                        ],
+                        "Sharing": ["sharing_feeling", "sharing_appreciation", "sharing_judgement"],
+                        "Understanding": ["understanding_feeling", "understanding_appreciation", "understanding_judgement"],
+                    }
+
+                # Create a flat list for selectbox
+                all_labels = []
+                for group, labels in label_groups.items():
+                    all_labels.extend(labels)
+
+                selected_label = st.selectbox(
+                    "Label:",
+                    options=all_labels,
+                    format_func=format_label_name,
+                    key=f"modal_label_{turn_id}",
+                )
+
+                # Show color preview
+                color = get_label_color(selected_label)
+                st.markdown(
+                    f'<span style="background-color: {color}; color: #1a1a2e; padding: 4px 12px; border-radius: 20px; font-weight: 600;">{format_label_name(selected_label)}</span>',
+                    unsafe_allow_html=True,
+                )
+
+                if st.button("➕ Add Annotation", type="primary", key=f"modal_add_{turn_id}"):
+                    add_span_annotation(
+                        turn_id,
+                        selected_text,
+                        start_idx,
+                        start_idx + len(selected_text),
+                        selected_label,
+                    )
+                    st.success("Annotation added!")
+                    st.rerun()
+            else:
+                st.error("✗ Text not found in this turn")
+
+        # SPIKES stage for clinician
+        if speaker == "clinician":
+            st.markdown("---")
+            st.markdown("**SPIKES Stage:**")
+            spikes_options = ["None", "setting", "perception", "invitation", "knowledge", "empathy", "strategy"]
+            current_spikes = st.session_state.current_annotations.get(turn_id, {}).get("spikes_stage")
+
+            selected_spikes = st.selectbox(
+                "Stage:",
+                spikes_options,
+                index=spikes_options.index(current_spikes) if current_spikes in spikes_options else 0,
+                key=f"modal_spikes_{turn_id}",
+            )
+
+            if selected_spikes != "None" and selected_spikes != current_spikes:
+                if st.button("Set SPIKES Stage", key=f"modal_spikes_btn_{turn_id}"):
+                    set_spikes_stage(turn_id, selected_spikes)
+                    st.rerun()
+
+    with col2:
+        st.markdown("#### 🤖 AI Suggestions")
+
+        # Build context from previous turns
+        context_parts = []
+        for t in conversation.get("turns", []):
+            if t["turn_id"] < turn["turn_id"]:
+                context_parts.append(f"{t['speaker'].upper()}: {t['text'][:100]}")
+        context = "\n".join(context_parts[-5:])
+
+        # Check API key
+        config = st.session_state.agent_config
+        has_api_key = bool(config.get("api_key")) or bool(
+            os.getenv("OPENAI_API_KEY" if config["provider"] == "openai" else "ANTHROPIC_API_KEY")
+        )
+
+        if not has_api_key:
+            st.warning("Configure API key in sidebar for AI suggestions.")
+        else:
+            st.caption(f"Using {config['agent_type'].upper()} with {config['model']}")
+
+            if st.button("🔮 Generate Suggestions", key=f"modal_ai_{turn_id}"):
+                with st.spinner("Analyzing..."):
+                    result = run_agent_on_turn(turn, context)
+                    if result:
+                        st.session_state.ai_suggestions = agent_result_to_suggestions(result, turn_id)
+                        st.rerun()
+
+        # Display suggestions
+        suggestions_for_turn = [s for s in st.session_state.ai_suggestions if s["turn_id"] == turn_id]
+
+        if suggestions_for_turn:
+            for i, suggestion in enumerate(suggestions_for_turn):
+                color = get_label_color(suggestion["suggested_label"])
+                st.markdown(
+                    f"""<div style="background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%); padding: 10px; border-radius: 8px; margin: 8px 0; color: #1a1a2e;">
+                    <strong>{format_label_name(suggestion['suggested_label'])}</strong><br>
+                    <small>"{suggestion['text'][:50]}..."</small>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    if st.button("✅", key=f"modal_accept_{turn_id}_{i}", help="Accept"):
+                        add_span_annotation(
+                            suggestion["turn_id"],
+                            suggestion["text"],
+                            suggestion.get("start", 0),
+                            suggestion.get("end", len(suggestion["text"])),
+                            suggestion["suggested_label"],
+                        )
+                        st.session_state.ai_suggestions = [
+                            s for s in st.session_state.ai_suggestions
+                            if not (s["turn_id"] == suggestion["turn_id"] and s["text"] == suggestion["text"])
+                        ]
+                        st.rerun()
+                with c2:
+                    if st.button("✏️", key=f"modal_edit_{turn_id}_{i}", help="Edit"):
+                        st.session_state[f"modal_text_{turn_id}"] = suggestion["text"]
+                        st.rerun()
+                with c3:
+                    if st.button("❌", key=f"modal_reject_{turn_id}_{i}", help="Reject"):
+                        st.session_state.ai_suggestions = [
+                            s for s in st.session_state.ai_suggestions
+                            if not (s["turn_id"] == suggestion["turn_id"] and s["text"] == suggestion["text"])
+                        ]
+                        st.rerun()
+        else:
+            st.caption("No suggestions yet. Click Generate to get AI suggestions.")
+
+    # Current annotations section
+    st.markdown("---")
+    st.markdown("#### 📋 Current Annotations")
+
+    turn_annotations = st.session_state.current_annotations.get(turn_id, {"spans": [], "relations": []})
+
+    if turn_annotations.get("spans"):
+        for span in turn_annotations["spans"]:
+            col_text, col_label, col_del = st.columns([3, 2, 1])
+            with col_text:
+                color = get_label_color(span["label"])
+                st.markdown(
+                    f'<span style="background-color: {color}; color: #1a1a2e; padding: 2px 8px; border-radius: 4px;">"{span["text"][:40]}..."</span>',
+                    unsafe_allow_html=True,
+                )
+            with col_label:
+                st.caption(format_label_name(span["label"]))
+            with col_del:
+                if st.button("🗑️", key=f"modal_del_{span['span_id']}", help="Delete"):
+                    remove_span_annotation(turn_id, span["span_id"])
+                    st.rerun()
+    else:
+        st.caption("No annotations for this turn yet.")
+
+    # Close button
+    st.markdown("---")
+    if st.button("✓ Done", type="primary", use_container_width=True):
+        st.session_state.open_dialog_turn_id = None
+        st.rerun()
+
+
+def render_turn_card(turn, schema, show_annotations=True):
+    """Render a conversation turn card with annotate button."""
     text = turn["text"]
     speaker = turn["speaker"]
     turn_id = turn["turn_id"]
 
-    # Get annotations from both original and session state
+    # Get annotations
     original_annotations = turn.get("annotations", {})
     session_annotations = st.session_state.current_annotations.get(turn_id, {})
 
@@ -600,15 +821,12 @@ def render_turn_with_highlights(turn, schema, show_annotations=True):
         if span["span_id"] not in [s["span_id"] for s in spans]:
             spans.append(span)
 
-    spikes_stage = session_annotations.get("spikes_stage") or original_annotations.get(
-        "spikes_stage"
-    )
+    spikes_stage = session_annotations.get("spikes_stage") or original_annotations.get("spikes_stage")
 
-    # Sort spans by start position (reverse for proper replacement)
-    sorted_spans = sorted(spans, key=lambda x: x.get("start", 0), reverse=True)
-
+    # Build highlighted text
     highlighted_text = text
     if show_annotations and spans:
+        sorted_spans = sorted(spans, key=lambda x: x.get("start", 0), reverse=True)
         for span in sorted_spans:
             label = span.get("label", "")
             color = get_label_color(label, schema)
@@ -620,7 +838,7 @@ def render_turn_with_highlights(turn, schema, show_annotations=True):
                     1,
                 )
 
-    # Build the turn HTML
+    # Render the turn
     turn_class = "patient-turn" if speaker == "patient" else "clinician-turn"
     speaker_icon = "🧑‍🦱" if speaker == "patient" else "👨‍⚕️"
     speaker_label = "Patient" if speaker == "patient" else "Clinician"
@@ -636,10 +854,9 @@ def render_turn_with_highlights(turn, schema, show_annotations=True):
 
     html += f'<div class="turn-text">{highlighted_text}</div>'
 
-    # Show annotation details
+    # Show annotation badges
     if show_annotations and spans:
         html += '<div class="annotation-section">'
-        html += "<strong>Annotations:</strong><br>"
         for span in spans:
             label = span.get("label", "")
             color = get_label_color(label, schema)
@@ -647,344 +864,8 @@ def render_turn_with_highlights(turn, schema, show_annotations=True):
         html += "</div>"
 
     html += "</div>"
+
     return html
-
-
-def render_annotation_interface(turn, schema):
-    """Render the annotation interface for a single turn."""
-    turn_id = turn["turn_id"]
-    speaker = turn["speaker"]
-    text = turn["text"]
-
-    st.markdown(f"### Turn {turn_id} - {speaker.title()}")
-
-    # Display the text
-    st.markdown(f'<div class="selectable-text">{text}</div>', unsafe_allow_html=True)
-
-    # Text selection input
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        selected_text = st.text_input(
-            "Selected text to annotate:",
-            key=f"text_input_{turn_id}",
-            placeholder="Copy and paste the text you want to annotate here...",
-        )
-
-    with col2:
-        if selected_text and selected_text in text:
-            start_idx = text.find(selected_text)
-            st.success(f"Found at position {start_idx}")
-        elif selected_text:
-            st.error("Text not found in turn")
-
-    # Label selection
-    if selected_text and selected_text in text:
-        st.markdown("**Select Label:**")
-
-        label_options = get_label_options()
-
-        # Filter labels based on speaker
-        if speaker == "patient":
-            relevant_categories = ["Patient EOs"]
-        else:
-            relevant_categories = [
-                "Clinician Elicitations",
-                "Clinician Responses - Acceptance",
-                "Clinician Responses - Sharing",
-                "Clinician Responses - Understanding",
-            ]
-
-        # Create tabs for categories
-        tabs = st.tabs(relevant_categories)
-
-        for tab, category in zip(tabs, relevant_categories):
-            with tab:
-                subcategories = label_options.get(category, {})
-                for subcat, labels in subcategories.items():
-                    st.markdown(f"**{subcat}:**")
-                    cols = st.columns(len(labels))
-                    for col, label in zip(cols, labels):
-                        with col:
-                            color = get_label_color(label)
-                            if st.button(
-                                format_label_name(label),
-                                key=f"btn_{turn_id}_{label}_{selected_text[:10]}",
-                                help=f"Apply {format_label_name(label)}",
-                            ):
-                                start_idx = text.find(selected_text)
-                                add_span_annotation(
-                                    turn_id,
-                                    selected_text,
-                                    start_idx,
-                                    start_idx + len(selected_text),
-                                    label,
-                                )
-                                st.success(f"Added: {format_label_name(label)}")
-                                st.rerun()
-
-    # SPIKES stage for clinician turns
-    if speaker == "clinician":
-        st.markdown("---")
-        st.markdown("**SPIKES Stage:**")
-        spikes_options = [
-            "None",
-            "setting",
-            "perception",
-            "invitation",
-            "knowledge",
-            "empathy",
-            "strategy",
-        ]
-        current_spikes = st.session_state.current_annotations.get(turn_id, {}).get(
-            "spikes_stage"
-        )
-
-        selected_spikes = st.selectbox(
-            "Select SPIKES stage:",
-            spikes_options,
-            index=(
-                spikes_options.index(current_spikes)
-                if current_spikes in spikes_options
-                else 0
-            ),
-            key=f"spikes_{turn_id}",
-        )
-
-        if selected_spikes != "None" and selected_spikes != current_spikes:
-            set_spikes_stage(turn_id, selected_spikes)
-            st.rerun()
-
-    # Display current annotations for this turn
-    st.markdown("---")
-    st.markdown("**Current Annotations:**")
-
-    turn_annotations = st.session_state.current_annotations.get(
-        turn_id, {"spans": [], "relations": []}
-    )
-
-    if turn_annotations.get("spans"):
-        for span in turn_annotations["spans"]:
-            col1, col2, col3 = st.columns([3, 2, 1])
-            with col1:
-                color = get_label_color(span["label"])
-                st.markdown(
-                    f'<span style="background-color: {color}; color: #1a1a2e; padding: 2px 8px; border-radius: 4px;">"{span["text"]}"</span>',
-                    unsafe_allow_html=True,
-                )
-            with col2:
-                st.caption(format_label_name(span["label"]))
-            with col3:
-                if st.button(
-                    "🗑️", key=f"del_{span['span_id']}", help="Remove annotation"
-                ):
-                    remove_span_annotation(turn_id, span["span_id"])
-                    st.rerun()
-    else:
-        st.caption("No annotations yet")
-
-
-def render_relation_editor(conversation):
-    """Render the relation editor interface."""
-    st.markdown("### Relation Editor")
-    st.markdown("Connect Empathic Opportunities to Clinician Responses")
-
-    # Collect all spans from all turns
-    all_spans = []
-    for turn in conversation.get("turns", []):
-        turn_id = turn["turn_id"]
-        speaker = turn["speaker"]
-        turn_annotations = st.session_state.current_annotations.get(
-            turn_id, {"spans": []}
-        )
-
-        for span in turn_annotations.get("spans", []):
-            all_spans.append(
-                {
-                    "turn_id": turn_id,
-                    "speaker": speaker,
-                    "span_id": span["span_id"],
-                    "text": (
-                        span["text"][:50] + "..."
-                        if len(span["text"]) > 50
-                        else span["text"]
-                    ),
-                    "label": span["label"],
-                    "display": f"T{turn_id} ({speaker}): {span['text'][:30]}... [{format_label_name(span['label'])}]",
-                }
-            )
-
-    if len(all_spans) < 2:
-        st.info("Add at least 2 span annotations to create relations.")
-        return
-
-    # Patient spans (EOs)
-    patient_spans = [s for s in all_spans if s["speaker"] == "patient"]
-    # Clinician spans (responses/elicitations)
-    clinician_spans = [s for s in all_spans if s["speaker"] == "clinician"]
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("**From (Patient EO):**")
-        from_options = {s["display"]: s for s in patient_spans}
-        selected_from = st.selectbox(
-            "Select source span:",
-            options=["Select..."] + list(from_options.keys()),
-            key="relation_from",
-        )
-
-    with col2:
-        st.markdown("**To (Clinician Response):**")
-        to_options = {s["display"]: s for s in clinician_spans}
-        selected_to = st.selectbox(
-            "Select target span:",
-            options=["Select..."] + list(to_options.keys()),
-            key="relation_to",
-        )
-
-    relation_type = st.selectbox(
-        "Relation type:", ["response_to", "elicitation_of"], key="relation_type"
-    )
-
-    if st.button("Add Relation", type="primary"):
-        if selected_from != "Select..." and selected_to != "Select...":
-            from_span = from_options[selected_from]
-            to_span = to_options[selected_to]
-
-            add_relation(
-                to_span["turn_id"],  # Store in clinician turn
-                to_span["span_id"],
-                from_span["turn_id"],
-                from_span["span_id"],
-                relation_type,
-            )
-            st.success("Relation added!")
-            st.rerun()
-        else:
-            st.error("Please select both source and target spans")
-
-    # Display existing relations
-    st.markdown("---")
-    st.markdown("**Existing Relations:**")
-
-    has_relations = False
-    for turn in conversation.get("turns", []):
-        turn_id = turn["turn_id"]
-        turn_annotations = st.session_state.current_annotations.get(
-            turn_id, {"relations": []}
-        )
-
-        for rel in turn_annotations.get("relations", []):
-            has_relations = True
-            st.markdown(
-                f'<div class="relation-item">**{rel["from"]}** → _{rel["type"]}_ → **{rel["to"]}**</div>',
-                unsafe_allow_html=True,
-            )
-
-    if not has_relations:
-        st.caption("No relations yet")
-
-
-def render_ai_suggestion_panel(turn, schema, conversation):
-    """Render AI suggestion panel with real agent integration."""
-    st.markdown("### 🤖 AI Suggestions")
-
-    # Build context from previous turns
-    context_parts = []
-    for t in conversation.get("turns", []):
-        if t["turn_id"] < turn["turn_id"]:
-            context_parts.append(f"{t['speaker'].upper()}: {t['text'][:100]}")
-    context = "\n".join(context_parts[-5:])  # Last 5 turns
-
-    # Check if API key is configured
-    config = st.session_state.agent_config
-    has_api_key = bool(config.get("api_key")) or bool(
-        os.getenv(
-            "OPENAI_API_KEY" if config["provider"] == "openai" else "ANTHROPIC_API_KEY"
-        )
-    )
-
-    if not has_api_key:
-        st.warning(
-            "Please configure your API key in the sidebar to use AI suggestions."
-        )
-        return
-
-    st.info(
-        f"Using **{config['agent_type'].upper()}** agent with **{config['model']}**"
-    )
-
-    if st.button(
-        "🔮 Generate AI Suggestions", type="primary", key=f"ai_btn_{turn['turn_id']}"
-    ):
-        with st.spinner("Agent is analyzing the turn..."):
-            result = run_agent_on_turn(turn, context)
-            if result:
-                st.session_state.ai_suggestions = agent_result_to_suggestions(
-                    result, turn["turn_id"]
-                )
-                st.rerun()
-
-    # Display AI suggestions
-    if st.session_state.ai_suggestions:
-        suggestions_for_turn = [
-            s
-            for s in st.session_state.ai_suggestions
-            if s["turn_id"] == turn["turn_id"]
-        ]
-
-        if not suggestions_for_turn:
-            st.caption("No suggestions for this turn")
-            return
-
-        for i, suggestion in enumerate(suggestions_for_turn):
-            color = get_label_color(suggestion["suggested_label"])
-
-            st.markdown(
-                f"""
-            <div class="ai-suggestion">
-                <strong>Suggested:</strong> <span style="background-color: {color}; padding: 2px 8px; border-radius: 4px;">{format_label_name(suggestion['suggested_label'])}</span><br>
-                <strong>Text:</strong> "{suggestion['text']}"<br>
-                <strong>Reasoning:</strong> {suggestion.get('reasoning', 'N/A')}
-            </div>
-            """,
-                unsafe_allow_html=True,
-            )
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("✅ Accept", key=f"accept_{turn['turn_id']}_{i}"):
-                    add_span_annotation(
-                        suggestion["turn_id"],
-                        suggestion["text"],
-                        suggestion.get("start", 0),
-                        suggestion.get("end", len(suggestion["text"])),
-                        suggestion["suggested_label"],
-                    )
-                    # Remove this suggestion
-                    st.session_state.ai_suggestions = [
-                        s
-                        for s in st.session_state.ai_suggestions
-                        if not (
-                            s["turn_id"] == suggestion["turn_id"]
-                            and s["text"] == suggestion["text"]
-                        )
-                    ]
-                    st.rerun()
-            with col2:
-                if st.button("✏️ Modify", key=f"modify_{turn['turn_id']}_{i}"):
-                    st.session_state.selected_text = suggestion["text"]
-            with col3:
-                if st.button("❌ Reject", key=f"reject_{turn['turn_id']}_{i}"):
-                    st.session_state.ai_suggestions = [
-                        s
-                        for s in st.session_state.ai_suggestions
-                        if not (
-                            s["turn_id"] == suggestion["turn_id"]
-                            and s["text"] == suggestion["text"]
-                        )
-                    ]
-                    st.rerun()
 
 
 # ============== Main Application ==============
@@ -1001,15 +882,8 @@ def main():
     schema = load_schema()
     conversations = load_conversations()
 
-    # Mode selection - added Agent mode
-    st.sidebar.subheader("Mode")
-    mode = st.sidebar.radio(
-        "Select mode:", ["📖 View", "✏️ Annotate", "🔗 Relations"], key="mode_selector"
-    )
-
-    st.sidebar.markdown("---")
-
     # Conversation selector
+    st.sidebar.subheader("📂 Conversations")
     if conversations:
         conv_options = {
             f"{c.get('id', 'Unknown')} - {c.get('metadata', {}).get('scenario', 'No scenario')}": i
@@ -1033,103 +907,109 @@ def main():
 
     # Display options
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Display Options")
+    st.sidebar.subheader("⚙️ Options")
     show_annotations = st.sidebar.checkbox("Show Annotations", value=True)
+
+    # Agent configuration
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🤖 AI Agent")
+
+    agent_type = st.sidebar.selectbox(
+        "Agent Type",
+        ["react", "multi"],
+        format_func=lambda x: "ReAct Agent" if x == "react" else "Multi-Agent",
+    )
+
+    provider = st.sidebar.selectbox("Provider", ["openai", "anthropic"])
+
+    if provider == "openai":
+        model = st.sidebar.selectbox("Model", ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"])
+    else:
+        model = st.sidebar.selectbox("Model", ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229"])
+
+    st.session_state.agent_config = {
+        "provider": provider,
+        "model": model,
+        "agent_type": agent_type,
+        "api_key": os.getenv("OPENAI_API_KEY" if provider == "openai" else "ANTHROPIC_API_KEY", ""),
+    }
 
     # Save button
     st.sidebar.markdown("---")
-    if st.sidebar.button("💾 Save Annotations", type="primary"):
+    if st.sidebar.button("💾 Save Annotations", type="primary", use_container_width=True):
         if current_conv:
             merged_conv = merge_annotations_to_conversation(current_conv.copy())
             filepath = save_conversation(merged_conv, current_conv.get("filepath"))
-            st.sidebar.success(f"Saved to {filepath}")
+            st.sidebar.success(f"Saved!")
 
     # Export button
-    if st.sidebar.button("📤 Export as JSON"):
-        if current_conv:
-            merged_conv = merge_annotations_to_conversation(current_conv.copy())
-            st.sidebar.download_button(
-                label="Download JSON",
-                data=json.dumps(merged_conv, indent=2, ensure_ascii=False),
-                file_name=f"annotated_{current_conv.get('id', 'unknown')}.json",
-                mime="application/json",
+    if current_conv:
+        merged_conv = merge_annotations_to_conversation(current_conv.copy())
+        st.sidebar.download_button(
+            label="📤 Export JSON",
+            data=json.dumps(merged_conv, indent=2, ensure_ascii=False),
+            file_name=f"annotated_{current_conv.get('id', 'unknown')}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+
+    # ============== Main Content ==============
+    st.title("📖 Conversation Viewer")
+
+    if current_conv:
+        # Check if we need to reopen a dialog (after rerun)
+        if st.session_state.open_dialog_turn_id is not None:
+            open_turn_id = st.session_state.open_dialog_turn_id
+            open_turn = next(
+                (t for t in current_conv.get("turns", []) if t["turn_id"] == open_turn_id),
+                None
             )
+            if open_turn:
+                annotation_dialog(open_turn, schema, current_conv)
 
-    # Main content
-    if mode == "📖 View":
-        st.title("📖 Conversation Viewer")
+        # Metadata header
+        metadata = current_conv.get("metadata", {})
+        st.info(
+            f"**Scenario:** {metadata.get('scenario', 'N/A')} | "
+            f"**Language:** {metadata.get('language', 'N/A')} | "
+            f"**Date:** {metadata.get('date', 'N/A')}"
+        )
 
-        if current_conv:
-            metadata = current_conv.get("metadata", {})
-            st.info(
-                f"**Scenario:** {metadata.get('scenario', 'N/A')} | **Language:** {metadata.get('language', 'N/A')} | **Date:** {metadata.get('date', 'N/A')}"
-            )
+        # Annotation stats
+        total_spans = sum(
+            len(st.session_state.current_annotations.get(t["turn_id"], {}).get("spans", []))
+            for t in current_conv.get("turns", [])
+        )
+        st.caption(f"📊 Total annotations: {total_spans}")
 
-            for turn in current_conv.get("turns", []):
-                html = render_turn_with_highlights(turn, schema, show_annotations)
-                st.markdown(html, unsafe_allow_html=True)
+        st.markdown("---")
 
-                # Show relations
-                if show_annotations:
-                    turn_id = turn["turn_id"]
-                    turn_annotations = st.session_state.current_annotations.get(
-                        turn_id, {"relations": []}
-                    )
-                    relations = turn_annotations.get("relations", [])
-                    if relations:
-                        with st.expander("View Relations"):
-                            for rel in relations:
-                                st.write(
-                                    f"**{rel['from']}** → _{rel['type']}_ → **{rel['to']}**"
-                                )
-        else:
-            st.warning("No conversation selected or available.")
+        # Render each turn with annotate button
+        for turn in current_conv.get("turns", []):
+            # Render the turn card
+            html = render_turn_card(turn, schema, show_annotations)
+            st.markdown(html, unsafe_allow_html=True)
 
-    elif mode == "✏️ Annotate":
-        st.title("✏️ Annotation Mode")
-
-        if current_conv:
-            metadata = current_conv.get("metadata", {})
-            st.info(f"**Scenario:** {metadata.get('scenario', 'N/A')}")
-
-            # Turn selector
-            turn_options = {
-                f"Turn {t['turn_id']} ({t['speaker'].title()}): {t['text'][:50]}...": t[
-                    "turn_id"
-                ]
-                for t in current_conv.get("turns", [])
-            }
-
-            selected_turn_display = st.selectbox(
-                "Select turn to annotate:", options=list(turn_options.keys())
-            )
-
-            selected_turn_id = turn_options[selected_turn_display]
-            selected_turn = next(
-                t for t in current_conv["turns"] if t["turn_id"] == selected_turn_id
-            )
-
-            col1, col2 = st.columns([2, 1])
-
+            # Annotate button below each turn
+            col1, col2, col3 = st.columns([1, 1, 4])
             with col1:
-                render_annotation_interface(selected_turn, schema)
-
+                if st.button(f"✏️ Annotate", key=f"annotate_btn_{turn['turn_id']}", use_container_width=True):
+                    st.session_state.open_dialog_turn_id = turn["turn_id"]
+                    annotation_dialog(turn, schema, current_conv)
             with col2:
-                render_ai_suggestion_panel(selected_turn, schema, current_conv)
-        else:
-            st.warning("No conversation selected.")
+                # Show relation count if any
+                turn_annotations = st.session_state.current_annotations.get(turn["turn_id"], {"relations": []})
+                relations = turn_annotations.get("relations", [])
+                if relations:
+                    st.caption(f"🔗 {len(relations)} relations")
 
-    elif mode == "🔗 Relations":
-        st.title("🔗 Relation Editor")
-
-        if current_conv:
-            render_relation_editor(current_conv)
-        else:
-            st.warning("No conversation selected.")
+            st.markdown("<br>", unsafe_allow_html=True)
+    else:
+        st.warning("No conversation selected or available.")
 
     # Footer
     st.sidebar.markdown("---")
-    st.sidebar.caption("AI-Assisted Annotation")
+    st.sidebar.caption("AI-Assisted Clinical Annotation")
 
 
 if __name__ == "__main__":
