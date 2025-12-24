@@ -21,167 +21,120 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for styling - works in both light and dark modes
+# Custom CSS for styling - clean, minimal design
 st.markdown(
     """
 <style>
-    /* Turn cards */
+    /* Turn cards - Clean, minimal design */
     .patient-turn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
-        border-radius: 12px;
-        margin: 15px 0;
-        border-left: 5px solid #5a4fcf;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        color: #ffffff !important;
+        background: #f8f4ff;
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin: 8px 0;
+        border-left: 4px solid #8b5cf6;
     }
     .clinician-turn {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        padding: 20px;
-        border-radius: 12px;
-        margin: 15px 0;
-        border-left: 5px solid #0d7d74;
-        box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
-        color: #ffffff !important;
-    }
-    .patient-turn *, .clinician-turn * {
-        color: #ffffff !important;
+        background: #f0fdf4;
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin: 8px 0;
+        border-left: 4px solid #22c55e;
     }
     .speaker-label {
-        font-weight: 700;
-        font-size: 1em;
-        margin-bottom: 8px;
+        font-weight: 600;
+        font-size: 0.85em;
+        margin-bottom: 6px;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        opacity: 0.9;
+        letter-spacing: 0.5px;
+        color: #64748b;
     }
+    .patient-turn .speaker-label { color: #7c3aed; }
+    .clinician-turn .speaker-label { color: #16a34a; }
     .turn-text {
-        font-size: 1.1em;
-        line-height: 1.7;
-        color: #ffffff !important;
+        font-size: 1em;
+        line-height: 1.6;
+        color: #1e293b;
     }
     .annotation-badge {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8em;
-        margin: 3px;
-        color: #1a1a2e !important;
-        font-weight: 600;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        margin: 2px;
+        color: #1e293b;
+        font-weight: 500;
     }
     .highlight-span {
-        padding: 3px 6px;
-        border-radius: 5px;
-        margin: 0 2px;
-        font-weight: 600;
-        color: #1a1a2e !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: 500;
+        color: #1e293b;
     }
     .annotation-section {
-        margin-top: 15px;
-        padding-top: 12px;
-        border-top: 1px solid rgba(255,255,255,0.3);
-        font-size: 0.9em;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 0.85em;
     }
 
-    /* Annotation mode specific styles */
+    /* Modal text display */
     .selectable-text {
-        background: #1a1a2e;
-        padding: 15px;
-        border-radius: 10px;
+        background: #f8fafc;
+        padding: 16px;
+        border-radius: 8px;
         margin: 10px 0;
-        color: #ffffff;
-        font-size: 1.1em;
-        line-height: 1.8;
+        color: #1e293b;
+        font-size: 1em;
+        line-height: 1.7;
+        border: 1px solid #e2e8f0;
         cursor: text;
         user-select: text;
     }
-    .annotation-card {
-        background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-        border-left: 4px solid #6c5ce7;
-    }
-    .span-item {
-        background: rgba(255,255,255,0.1);
-        padding: 10px;
-        border-radius: 8px;
-        margin: 5px 0;
-        border-left: 3px solid #00cec9;
-    }
+
+    /* AI suggestion cards */
     .ai-suggestion {
-        background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%);
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-        color: #1a1a2e !important;
+        background: #fffbeb;
+        padding: 12px;
+        border-radius: 8px;
+        margin: 8px 0;
+        border: 1px solid #fcd34d;
+        color: #1e293b;
     }
-    .ai-suggestion * {
-        color: #1a1a2e !important;
-    }
+
+    /* Relation items */
     .relation-item {
-        background: rgba(116, 185, 255, 0.2);
+        background: #eff6ff;
         padding: 8px 12px;
         border-radius: 6px;
-        margin: 5px 0;
-        border: 1px solid #74b9ff;
+        margin: 4px 0;
+        border: 1px solid #bfdbfe;
+        font-size: 0.9em;
     }
 
-    /* Agent annotation styles */
-    .agent-annotation {
-        background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
-        padding: 15px;
-        border-radius: 10px;
-        margin: 10px 0;
-        color: #ffffff !important;
-    }
-    .agent-annotation * {
-        color: #ffffff !important;
-    }
-    .comparison-match {
-        background: rgba(0, 255, 136, 0.2);
-        border: 1px solid #00ff88;
-        padding: 10px;
-        border-radius: 8px;
-        margin: 5px 0;
-    }
-    .comparison-agent-only {
-        background: rgba(255, 107, 107, 0.2);
-        border: 1px solid #ff6b6b;
-        padding: 10px;
-        border-radius: 8px;
-        margin: 5px 0;
-    }
-    .comparison-expert-only {
-        background: rgba(116, 185, 255, 0.2);
-        border: 1px solid #74b9ff;
-        padding: 10px;
-        border-radius: 8px;
-        margin: 5px 0;
+    /* Undo button styling */
+    .undo-btn {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 0.85em;
     }
 
-    /* Button styles */
+    /* Clean button styles */
     .stButton > button {
-        border-radius: 20px;
-        padding: 5px 20px;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+
+    /* Annotation count badge */
+    .count-badge {
+        background: #e0e7ff;
+        color: #4338ca;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8em;
         font-weight: 600;
-    }
-
-    /* Make text areas more visible */
-    .stTextArea textarea {
-        background-color: #2d3436 !important;
-        color: #ffffff !important;
-    }
-
-    /* Agent config section */
-    .agent-config {
-        background: rgba(108, 92, 231, 0.1);
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid #6c5ce7;
-        margin: 10px 0;
     }
 </style>
 """,
@@ -363,6 +316,10 @@ def init_session_state():
     if "open_dialog_turn_id" not in st.session_state:
         st.session_state.open_dialog_turn_id = None
 
+    # Undo history stack
+    if "undo_history" not in st.session_state:
+        st.session_state.undo_history = []
+
     # Agent configuration
     if "agent_config" not in st.session_state:
         st.session_state.agent_config = {
@@ -371,6 +328,25 @@ def init_session_state():
             "agent_type": "react",
             "api_key": os.getenv("OPENAI_API_KEY", ""),
         }
+
+
+def save_to_undo_history():
+    """Save current state to undo history."""
+    import copy
+    # Keep max 20 undo states
+    if len(st.session_state.undo_history) >= 20:
+        st.session_state.undo_history.pop(0)
+    st.session_state.undo_history.append(
+        copy.deepcopy(st.session_state.current_annotations)
+    )
+
+
+def undo_last_action():
+    """Restore the previous annotation state."""
+    if st.session_state.undo_history:
+        st.session_state.current_annotations = st.session_state.undo_history.pop()
+        return True
+    return False
 
 
 # ============== Agent Functions ==============
@@ -466,6 +442,8 @@ def agent_result_to_suggestions(agent_result, turn_id):
 
 def add_span_annotation(turn_id, text, start, end, label):
     """Add a span annotation to the current annotations."""
+    save_to_undo_history()  # Save state before modifying
+
     if turn_id not in st.session_state.current_annotations:
         st.session_state.current_annotations[turn_id] = {
             "spans": [],
@@ -487,6 +465,8 @@ def add_span_annotation(turn_id, text, start, end, label):
 
 def remove_span_annotation(turn_id, span_id):
     """Remove a span annotation."""
+    save_to_undo_history()  # Save state before modifying
+
     if turn_id in st.session_state.current_annotations:
         st.session_state.current_annotations[turn_id]["spans"] = [
             s
@@ -503,7 +483,8 @@ def remove_span_annotation(turn_id, span_id):
 
 def add_relation(from_turn_id, from_span_id, to_turn_id, to_span_id, relation_type):
     """Add a relation between two spans."""
-    # Store relation in the 'from' turn
+    save_to_undo_history()  # Save state before modifying
+
     if from_turn_id not in st.session_state.current_annotations:
         st.session_state.current_annotations[from_turn_id] = {
             "spans": [],
@@ -525,6 +506,8 @@ def add_relation(from_turn_id, from_span_id, to_turn_id, to_span_id, relation_ty
 
 def set_spikes_stage(turn_id, stage):
     """Set SPIKES stage for a clinician turn."""
+    save_to_undo_history()  # Save state before modifying
+
     if turn_id not in st.session_state.current_annotations:
         st.session_state.current_annotations[turn_id] = {
             "spans": [],
@@ -595,15 +578,24 @@ def annotation_dialog(turn, schema, conversation):
     speaker = turn["speaker"]
     text = turn["text"]
 
-    # Header
+    # Header with speaker info
     speaker_icon = "🧑‍🦱" if speaker == "patient" else "👨‍⚕️"
-    st.markdown(f"### {speaker_icon} {speaker.title()} - Turn {turn_id}")
-
-    # Display the turn text
+    speaker_color = "#8b5cf6" if speaker == "patient" else "#22c55e"
     st.markdown(
-        f'<div class="selectable-text" style="background: #1a1a2e; padding: 15px; border-radius: 10px; margin: 10px 0; font-size: 1.1em; line-height: 1.8;">{text}</div>',
+        f'<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">'
+        f'<span style="font-size: 1.5em;">{speaker_icon}</span>'
+        f'<span style="font-size: 1.2em; font-weight: 600; color: {speaker_color};">{speaker.title()}</span>'
+        f'<span style="color: #64748b; font-size: 0.9em;">Turn {turn_id}</span>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
+    # Display the turn text with highlight hint
+    st.markdown(
+        f'<div class="selectable-text">{text}</div>',
         unsafe_allow_html=True,
     )
+    st.caption("💡 Select text above and paste it below to annotate")
 
     # Two columns: Annotation tools | AI Suggestions
     col1, col2 = st.columns([1, 1])
@@ -611,11 +603,11 @@ def annotation_dialog(turn, schema, conversation):
     with col1:
         st.markdown("#### ✏️ Manual Annotation")
 
-        # Text selection input
+        # Text selection input with better UX
         selected_text = st.text_input(
-            "Select text to annotate:",
+            "Text to annotate:",
             key=f"modal_text_{turn_id}",
-            placeholder="Copy and paste text from above...",
+            placeholder="Paste selected text here...",
         )
 
         if selected_text:
@@ -776,7 +768,16 @@ def annotation_dialog(turn, schema, conversation):
 
     # Current annotations section
     st.markdown("---")
-    st.markdown("#### 📋 Current Annotations")
+
+    # Header with undo button
+    header_col1, header_col2 = st.columns([3, 1])
+    with header_col1:
+        st.markdown("#### 📋 Current Annotations")
+    with header_col2:
+        if st.session_state.undo_history:
+            if st.button("↩️ Undo", key=f"modal_undo_{turn_id}", help="Undo last action"):
+                undo_last_action()
+                st.rerun()
 
     turn_annotations = st.session_state.current_annotations.get(turn_id, {"spans": [], "relations": []})
 
@@ -786,7 +787,7 @@ def annotation_dialog(turn, schema, conversation):
             with col_text:
                 color = get_label_color(span["label"])
                 st.markdown(
-                    f'<span style="background-color: {color}; color: #1a1a2e; padding: 2px 8px; border-radius: 4px;">"{span["text"][:40]}..."</span>',
+                    f'<span style="background-color: {color}; color: #1e293b; padding: 2px 8px; border-radius: 4px;">"{span["text"][:40]}{"..." if len(span["text"]) > 40 else ""}"</span>',
                     unsafe_allow_html=True,
                 )
             with col_label:
@@ -797,6 +798,65 @@ def annotation_dialog(turn, schema, conversation):
                     st.rerun()
     else:
         st.caption("No annotations for this turn yet.")
+
+    # Relations section
+    st.markdown("---")
+    st.markdown("#### 🔗 Link Relations")
+
+    # Get all spans from this conversation for relation linking
+    all_patient_spans = []
+    all_clinician_spans = []
+
+    for t in conversation.get("turns", []):
+        t_id = t["turn_id"]
+        t_speaker = t["speaker"]
+        t_annotations = st.session_state.current_annotations.get(t_id, {"spans": []})
+        for span in t_annotations.get("spans", []):
+            span_info = {
+                "turn_id": t_id,
+                "span_id": span["span_id"],
+                "text": span["text"][:30] + "..." if len(span["text"]) > 30 else span["text"],
+                "label": span["label"],
+                "display": f"T{t_id}: \"{span['text'][:25]}...\" [{format_label_name(span['label'])}]"
+            }
+            if t_speaker == "patient":
+                all_patient_spans.append(span_info)
+            else:
+                all_clinician_spans.append(span_info)
+
+    if all_patient_spans and all_clinician_spans:
+        rel_col1, rel_col2 = st.columns(2)
+        with rel_col1:
+            from_options = ["Select patient EO..."] + [s["display"] for s in all_patient_spans]
+            selected_from = st.selectbox("From (Patient EO):", from_options, key=f"rel_from_{turn_id}")
+        with rel_col2:
+            to_options = ["Select clinician response..."] + [s["display"] for s in all_clinician_spans]
+            selected_to = st.selectbox("To (Clinician):", to_options, key=f"rel_to_{turn_id}")
+
+        if selected_from != "Select patient EO..." and selected_to != "Select clinician response...":
+            if st.button("🔗 Create Link", key=f"create_rel_{turn_id}"):
+                from_span = next(s for s in all_patient_spans if s["display"] == selected_from)
+                to_span = next(s for s in all_clinician_spans if s["display"] == selected_to)
+                add_relation(
+                    to_span["turn_id"],
+                    to_span["span_id"],
+                    from_span["turn_id"],
+                    from_span["span_id"],
+                    "response_to"
+                )
+                st.success("Relation created!")
+                st.rerun()
+    else:
+        st.caption("Add patient and clinician annotations to create relations.")
+
+    # Show existing relations
+    if turn_annotations.get("relations"):
+        st.markdown("**Existing relations:**")
+        for rel in turn_annotations["relations"]:
+            st.markdown(
+                f'<div class="relation-item">{rel["from"]} → {rel["type"]} → {rel["to"]}</div>',
+                unsafe_allow_html=True
+            )
 
     # Close button
     st.markdown("---")
@@ -834,23 +894,23 @@ def render_turn_card(turn, schema, show_annotations=True):
             if span_text in highlighted_text:
                 highlighted_text = highlighted_text.replace(
                     span_text,
-                    f'<span class="highlight-span" style="background-color: {color}; color: #1a1a2e !important;" title="{format_label_name(label)}">{span_text}</span>',
+                    f'<span class="highlight-span" style="background-color: {color};" title="{format_label_name(label)}">{span_text}</span>',
                     1,
                 )
 
-    # Render the turn
+    # Render the turn with clean styling
     turn_class = "patient-turn" if speaker == "patient" else "clinician-turn"
     speaker_icon = "🧑‍🦱" if speaker == "patient" else "👨‍⚕️"
     speaker_label = "Patient" if speaker == "patient" else "Clinician"
 
     html = f"""
     <div class="{turn_class}">
-        <div class="speaker-label">{speaker_icon} {speaker_label} (Turn {turn_id})</div>
+        <div class="speaker-label">{speaker_icon} {speaker_label} · Turn {turn_id}</div>
     """
 
     if spikes_stage and speaker == "clinician":
         spikes_color = get_label_color(spikes_stage, schema)
-        html += f'<span class="annotation-badge" style="background-color: {spikes_color}; color: #1a1a2e;">SPIKES: {spikes_stage.upper()}</span><br><br>'
+        html += f'<span class="annotation-badge" style="background-color: {spikes_color};">SPIKES: {spikes_stage.upper()}</span><br><br>'
 
     html += f'<div class="turn-text">{highlighted_text}</div>'
 
