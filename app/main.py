@@ -837,12 +837,12 @@ def annotation_dialog(turn, schema, conversation):
     st.markdown("---")
 
     # Header with undo button
-    header_col1, header_col2 = st.columns([3, 1])
+    header_col1, header_col2, header_col3 = st.columns([3, 2, 1])
     with header_col1:
         st.markdown("#### 📋 Current Annotations")
-    with header_col2:
+    with header_col3:
         if st.session_state.undo_history:
-            if st.button("↩️ Undo", key=f"modal_undo_{turn_id}", help="Undo last action"):
+            if st.button("↩️ Undo", key=f"modal_undo_{turn_id}"):
                 undo_last_action()
                 st.rerun()
 
