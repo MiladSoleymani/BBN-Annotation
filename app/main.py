@@ -965,11 +965,6 @@ def main():
         st.sidebar.warning("No conversations found in data/samples/")
         current_conv = None
 
-    # Display options
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("⚙️ Options")
-    show_annotations = st.sidebar.checkbox("Show Annotations", value=True)
-
     # Agent configuration
     st.sidebar.markdown("---")
     st.sidebar.subheader("🤖 AI Agent")
@@ -1014,7 +1009,13 @@ def main():
         )
 
     # ============== Main Content ==============
-    st.title("📖 Conversation Viewer")
+    # Title with show annotations toggle on the right
+    title_col, toggle_col = st.columns([4, 1])
+    with title_col:
+        st.title("📖 Conversation Viewer")
+    with toggle_col:
+        st.markdown("<div style='height: 42px'></div>", unsafe_allow_html=True)  # Align with title
+        show_annotations = st.toggle("Show Annotations", value=True)
 
     if current_conv:
         # Check if we need to reopen a dialog (after rerun)
