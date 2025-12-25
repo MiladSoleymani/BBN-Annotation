@@ -172,6 +172,19 @@ st.markdown(
         font-size: 0.8em;
         font-weight: 600;
     }
+
+    /* Relations badge */
+    .relations-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        padding: 8px 14px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        font-weight: 600;
+        border: 1px solid #93c5fd;
+        margin-top: 0;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -1122,7 +1135,10 @@ def main():
                 turn_annotations = st.session_state.current_annotations.get(turn["turn_id"], {"relations": []})
                 relations = turn_annotations.get("relations", [])
                 if relations:
-                    st.caption(f"🔗 {len(relations)} relations")
+                    st.markdown(
+                        f'<div class="relations-badge">🔗 {len(relations)} relation{"s" if len(relations) > 1 else ""}</div>',
+                        unsafe_allow_html=True
+                    )
     else:
         st.warning("No conversation selected or available.")
 
