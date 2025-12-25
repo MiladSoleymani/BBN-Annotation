@@ -490,15 +490,21 @@ def agent_result_to_suggestions(agent_result, turn_id):
 
 
 def add_span_annotation(turn_id, text, start, end, label):
-    """Add a span annotation to the current annotations."""
-    save_to_undo_history()  # Save state before modifying
-
+    """Add a span annotation to the current annotations. Returns span_id or None if duplicate."""
     if turn_id not in st.session_state.current_annotations:
         st.session_state.current_annotations[turn_id] = {
             "spans": [],
             "relations": [],
             "spikes_stage": None,
         }
+
+    # Check for duplicate (same text and label)
+    existing_spans = st.session_state.current_annotations[turn_id]["spans"]
+    for existing in existing_spans:
+        if existing["text"] == text and existing["label"] == label:
+            return None  # Duplicate found
+
+    save_to_undo_history()  # Save state before modifying
 
     span = {
         "span_id": f"span_{uuid.uuid4().hex[:8]}",
@@ -719,15 +725,18 @@ def annotation_dialog(turn, schema, conversation):
                 )
 
                 if st.button("➕ Add Annotation", type="primary", key=f"modal_add_{turn_id}"):
-                    add_span_annotation(
+                    result = add_span_annotation(
                         turn_id,
                         selected_text,
                         start_idx,
                         start_idx + len(selected_text),
                         selected_label,
                     )
-                    st.success("Annotation added!")
-                    st.rerun()
+                    if result:
+                        st.success("Annotation added!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ This annotation already exists!")
             else:
                 st.error("✗ Text not found in this turn")
 
@@ -794,25 +803,28 @@ def annotation_dialog(turn, schema, conversation):
 
                 c1, c2, c3 = st.columns(3)
                 with c1:
-                    if st.button("✅", key=f"modal_accept_{turn_id}_{i}", help="Accept"):
-                        add_span_annotation(
+                    if st.button("✅ Accept", key=f"modal_accept_{turn_id}_{i}"):
+                        result = add_span_annotation(
                             suggestion["turn_id"],
                             suggestion["text"],
                             suggestion.get("start", 0),
                             suggestion.get("end", len(suggestion["text"])),
                             suggestion["suggested_label"],
                         )
-                        st.session_state.ai_suggestions = [
-                            s for s in st.session_state.ai_suggestions
-                            if not (s["turn_id"] == suggestion["turn_id"] and s["text"] == suggestion["text"])
-                        ]
-                        st.rerun()
+                        if result:
+                            st.session_state.ai_suggestions = [
+                                s for s in st.session_state.ai_suggestions
+                                if not (s["turn_id"] == suggestion["turn_id"] and s["text"] == suggestion["text"])
+                            ]
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ Already exists!")
                 with c2:
-                    if st.button("✏️", key=f"modal_edit_{turn_id}_{i}", help="Edit"):
+                    if st.button("✏️ Edit", key=f"modal_edit_{turn_id}_{i}"):
                         st.session_state[f"modal_text_{turn_id}"] = suggestion["text"]
                         st.rerun()
                 with c3:
-                    if st.button("❌", key=f"modal_reject_{turn_id}_{i}", help="Reject"):
+                    if st.button("❌ Reject", key=f"modal_reject_{turn_id}_{i}"):
                         st.session_state.ai_suggestions = [
                             s for s in st.session_state.ai_suggestions
                             if not (s["turn_id"] == suggestion["turn_id"] and s["text"] == suggestion["text"])
@@ -848,7 +860,7 @@ def annotation_dialog(turn, schema, conversation):
             with col_label:
                 st.caption(format_label_name(span["label"]))
             with col_del:
-                if st.button("🗑️", key=f"modal_del_{span['span_id']}", help="Delete"):
+                if st.button("🗑️ Del", key=f"modal_del_{span['span_id']}"):
                     remove_span_annotation(turn_id, span["span_id"])
                     st.rerun()
     else:
