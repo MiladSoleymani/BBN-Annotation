@@ -128,11 +128,23 @@ st.markdown(
     /* Relation items */
     .relation-item {
         background: #eff6ff;
-        padding: 8px 12px;
+        padding: 10px 14px;
         border-radius: 6px;
-        margin: 4px 0;
+        margin: 6px 0;
         border: 1px solid #bfdbfe;
         font-size: 0.9em;
+        color: #1e40af;
+        font-weight: 500;
+    }
+    .relation-item .rel-arrow {
+        color: #64748b;
+        margin: 0 8px;
+    }
+    .relation-item .rel-type {
+        background: #dbeafe;
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #1e40af;
     }
 
     /* Undo button styling */
@@ -547,11 +559,17 @@ def merge_annotations_to_conversation(conversation):
         turn_id = turn["turn_id"]
         if turn_id in st.session_state.current_annotations:
             if "annotations" not in turn:
-                turn["annotations"] = {"spans": [], "relations": []}
+                turn["annotations"] = {}
+
+            # Ensure spans and relations keys exist
+            if "spans" not in turn["annotations"]:
+                turn["annotations"]["spans"] = []
+            if "relations" not in turn["annotations"]:
+                turn["annotations"]["relations"] = []
 
             # Merge spans
             existing_span_ids = {
-                s["span_id"] for s in turn["annotations"].get("spans", [])
+                s["span_id"] for s in turn["annotations"]["spans"]
             }
             for span in st.session_state.current_annotations[turn_id].get("spans", []):
                 if span["span_id"] not in existing_span_ids:
@@ -559,7 +577,7 @@ def merge_annotations_to_conversation(conversation):
 
             # Merge relations
             existing_rel_ids = {
-                r.get("relation_id") for r in turn["annotations"].get("relations", [])
+                r.get("relation_id") for r in turn["annotations"]["relations"]
             }
             for rel in st.session_state.current_annotations[turn_id].get(
                 "relations", []
@@ -877,8 +895,26 @@ def annotation_dialog(turn, schema, conversation):
     if turn_annotations.get("relations"):
         st.markdown("**Existing relations:**")
         for rel in turn_annotations["relations"]:
+            # Find the span texts for better display
+            from_text = rel["from"]
+            to_text = rel["to"]
+            # Look up actual span text from all spans
+            for s in all_clinician_spans:
+                if s["span_id"] == rel["from"]:
+                    from_text = f'"{s["text"]}"'
+                    break
+            for s in all_patient_spans:
+                if s["span_id"] == rel["to"]:
+                    to_text = f'"{s["text"]}"'
+                    break
             st.markdown(
-                f'<div class="relation-item">{rel["from"]} → {rel["type"]} → {rel["to"]}</div>',
+                f'<div class="relation-item">'
+                f'<span style="color:#16a34a;">👨‍⚕️ {from_text}</span>'
+                f'<span class="rel-arrow">→</span>'
+                f'<span class="rel-type">{rel["type"].replace("_", " ")}</span>'
+                f'<span class="rel-arrow">→</span>'
+                f'<span style="color:#7c3aed;">🧑‍🦱 {to_text}</span>'
+                f'</div>',
                 unsafe_allow_html=True
             )
 
