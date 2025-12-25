@@ -25,19 +25,43 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+    /* Reduce default Streamlit spacing */
+    .block-container {
+        padding-top: 1rem;
+    }
+    .element-container {
+        margin-bottom: 0;
+    }
+    /* Tighter info/caption spacing */
+    .stAlert {
+        margin-bottom: 0.25rem;
+    }
+    .stCaption {
+        margin-top: 0;
+        margin-bottom: 0.25rem;
+    }
+    hr {
+        margin: 0.25rem 0;
+    }
+    /* Tighter button spacing */
+    .stColumns {
+        margin-top: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
     /* Turn cards - Clean, minimal design */
     .patient-turn {
         background: #f8f4ff;
         padding: 16px 20px;
         border-radius: 8px;
-        margin: 8px 0;
+        margin: 4px 0;
         border-left: 4px solid #8b5cf6;
     }
     .clinician-turn {
         background: #f0fdf4;
         padding: 16px 20px;
         border-radius: 8px;
-        margin: 8px 0;
+        margin: 4px 0;
         border-left: 4px solid #22c55e;
     }
     .speaker-label {
@@ -1063,8 +1087,6 @@ def main():
                 relations = turn_annotations.get("relations", [])
                 if relations:
                     st.caption(f"🔗 {len(relations)} relations")
-
-            st.markdown("<br>", unsafe_allow_html=True)
     else:
         st.warning("No conversation selected or available.")
 
