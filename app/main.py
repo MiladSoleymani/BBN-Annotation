@@ -801,7 +801,7 @@ def annotation_dialog(turn, schema, conversation):
                     unsafe_allow_html=True,
                 )
 
-                c1, c2, c3 = st.columns(3)
+                c1, c2, _ = st.columns([1, 1, 4])
                 with c1:
                     if st.button("✅ Accept", key=f"modal_accept_{turn_id}_{i}"):
                         result = add_span_annotation(
@@ -820,10 +820,6 @@ def annotation_dialog(turn, schema, conversation):
                         else:
                             st.warning("⚠️ Already exists!")
                 with c2:
-                    if st.button("✏️ Edit", key=f"modal_edit_{turn_id}_{i}"):
-                        st.session_state[f"modal_text_{turn_id}"] = suggestion["text"]
-                        st.rerun()
-                with c3:
                     if st.button("❌ Reject", key=f"modal_reject_{turn_id}_{i}"):
                         st.session_state.ai_suggestions = [
                             s for s in st.session_state.ai_suggestions
