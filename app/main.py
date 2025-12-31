@@ -1137,7 +1137,7 @@ def main():
             with col1:
                 if st.button(f"✏️ Annotate", key=f"annotate_btn_{turn['turn_id']}", use_container_width=True):
                     st.session_state.open_dialog_turn_id = turn["turn_id"]
-                    annotation_dialog(turn, schema, current_conv)
+                    st.rerun()
             with col2:
                 # Show relation count if any
                 turn_annotations = st.session_state.current_annotations.get(turn["turn_id"], {"relations": []})
