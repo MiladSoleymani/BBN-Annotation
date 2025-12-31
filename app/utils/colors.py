@@ -3,8 +3,8 @@
 from config import LABEL_COLORS, DEFAULT_COLOR, PATIENT_LABELS, CLINICIAN_LABELS
 
 
-def get_label_color(label, schema=None):
-    """Get color for a label."""
+def get_label_color(label):
+    """Get color for a label from config."""
     return LABEL_COLORS.get(label, DEFAULT_COLOR)
 
 

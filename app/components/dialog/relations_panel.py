@@ -4,6 +4,9 @@ import streamlit as st
 from utils import format_label_name
 from services import add_relation
 
+# Available relation types from schema
+RELATION_TYPES = ["response_to", "elicitation_of"]
+
 
 def render_relations_panel(turn_id, conversation, turn_annotations):
     """Render the relations panel."""
@@ -31,7 +34,7 @@ def render_relations_panel(turn_id, conversation, turn_annotations):
                 all_clinician_spans.append(span_info)
 
     if all_patient_spans and all_clinician_spans:
-        rel_col1, rel_col2 = st.columns(2)
+        rel_col1, rel_col2, rel_col3 = st.columns(3)
         with rel_col1:
             from_options = ["Select patient EO..."] + [s["display"] for s in all_patient_spans]
             selected_from = st.selectbox(
@@ -44,6 +47,13 @@ def render_relations_panel(turn_id, conversation, turn_annotations):
             selected_to = st.selectbox(
                 "To (Clinician):", to_options, key=f"rel_to_{turn_id}"
             )
+        with rel_col3:
+            selected_rel_type = st.selectbox(
+                "Relation Type:",
+                RELATION_TYPES,
+                format_func=lambda x: x.replace("_", " ").title(),
+                key=f"rel_type_{turn_id}"
+            )
 
         if selected_from != "Select patient EO..." and selected_to != "Select clinician response...":
             if st.button("Create Link", key=f"create_rel_{turn_id}"):
@@ -54,7 +64,7 @@ def render_relations_panel(turn_id, conversation, turn_annotations):
                     to_span["span_id"],
                     from_span["turn_id"],
                     from_span["span_id"],
-                    "response_to",
+                    selected_rel_type,
                 )
                 st.success("Relation created!")
                 st.rerun()

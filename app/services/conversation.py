@@ -1,6 +1,7 @@
 """Conversation data loading and saving services."""
 
 import json
+import copy
 from datetime import datetime
 import streamlit as st
 from config import SCHEMA_PATH, SAMPLES_DIR
@@ -9,8 +10,15 @@ from config import SCHEMA_PATH, SAMPLES_DIR
 def load_schema():
     """Load annotation schema from JSON file."""
     if SCHEMA_PATH.exists():
-        with open(SCHEMA_PATH, "r") as f:
-            return json.load(f)
+        try:
+            with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            st.error(f"Error parsing schema file: {e}")
+            return None
+        except IOError as e:
+            st.error(f"Error reading schema file: {e}")
+            return None
     return None
 
 
@@ -19,11 +27,16 @@ def load_conversations():
     conversations = []
     if SAMPLES_DIR.exists():
         for file in sorted(SAMPLES_DIR.glob("*.json")):
-            with open(file, "r") as f:
-                conv = json.load(f)
-                conv["filename"] = file.name
-                conv["filepath"] = str(file)
-                conversations.append(conv)
+            try:
+                with open(file, "r", encoding="utf-8") as f:
+                    conv = json.load(f)
+                    conv["filename"] = file.name
+                    conv["filepath"] = str(file)
+                    conversations.append(conv)
+            except json.JSONDecodeError as e:
+                st.warning(f"Skipping invalid JSON file {file.name}: {e}")
+            except IOError as e:
+                st.warning(f"Error reading {file.name}: {e}")
     return conversations
 
 
@@ -35,10 +48,13 @@ def save_conversation(conversation, filepath=None):
             / f"annotated_{conversation.get('id', 'unknown')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
 
-    with open(filepath, "w") as f:
-        json.dump(conversation, f, indent=2, ensure_ascii=False)
-
-    return filepath
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(conversation, f, indent=2, ensure_ascii=False)
+        return filepath
+    except IOError as e:
+        st.error(f"Error saving file: {e}")
+        return None
 
 
 def merge_annotations_to_conversation(conversation):
@@ -85,8 +101,9 @@ def load_existing_annotations(conversation):
         annotations = turn.get("annotations", {})
 
         if annotations:
+            # Use deepcopy to avoid modifying original data
             st.session_state.current_annotations[turn_id] = {
-                "spans": annotations.get("spans", []).copy(),
-                "relations": annotations.get("relations", []).copy(),
+                "spans": copy.deepcopy(annotations.get("spans", [])),
+                "relations": copy.deepcopy(annotations.get("relations", [])),
                 "spikes_stage": annotations.get("spikes_stage"),
             }

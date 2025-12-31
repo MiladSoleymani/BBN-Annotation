@@ -6,7 +6,11 @@ from state import save_to_undo_history
 
 
 def add_span_annotation(turn_id, text, start, end, label):
-    """Add a span annotation. Returns span_id or None if duplicate."""
+    """Add a span annotation. Returns span_id or None if invalid/duplicate."""
+    # Validate positions
+    if start < 0 or end <= start:
+        return None  # Invalid positions
+
     if turn_id not in st.session_state.current_annotations:
         st.session_state.current_annotations[turn_id] = {
             "spans": [],
@@ -14,9 +18,13 @@ def add_span_annotation(turn_id, text, start, end, label):
             "spikes_stage": None,
         }
 
-    # Check for duplicate (same text and label)
+    # Check for duplicate (same position and label, or same text and label)
     existing_spans = st.session_state.current_annotations[turn_id]["spans"]
     for existing in existing_spans:
+        # Check for exact position match with same label
+        if existing["start"] == start and existing["end"] == end and existing["label"] == label:
+            return None  # Duplicate found
+        # Also check for same text and label (backward compatibility)
         if existing["text"] == text and existing["label"] == label:
             return None  # Duplicate found
 
@@ -35,7 +43,7 @@ def add_span_annotation(turn_id, text, start, end, label):
 
 
 def remove_span_annotation(turn_id, span_id):
-    """Remove a span annotation and its related relations."""
+    """Remove a span annotation and its related relations across all turns."""
     save_to_undo_history()
 
     if turn_id in st.session_state.current_annotations:
@@ -45,12 +53,15 @@ def remove_span_annotation(turn_id, span_id):
             for s in st.session_state.current_annotations[turn_id]["spans"]
             if s["span_id"] != span_id
         ]
-        # Also remove related relations
-        st.session_state.current_annotations[turn_id]["relations"] = [
-            r
-            for r in st.session_state.current_annotations[turn_id]["relations"]
-            if r["from"] != span_id and r["to"] != span_id
-        ]
+
+    # Remove relations referencing this span from ALL turns (cross-turn relations)
+    for tid in st.session_state.current_annotations:
+        if "relations" in st.session_state.current_annotations[tid]:
+            st.session_state.current_annotations[tid]["relations"] = [
+                r
+                for r in st.session_state.current_annotations[tid]["relations"]
+                if r["from"] != span_id and r["to"] != span_id
+            ]
 
 
 def add_relation(from_turn_id, from_span_id, to_turn_id, to_span_id, relation_type):

@@ -45,10 +45,14 @@ def render_ai_panel(turn, turn_id, conversation):
     if suggestions_for_turn:
         for i, suggestion in enumerate(suggestions_for_turn):
             color = get_label_color(suggestion["suggested_label"])
+            # Only truncate if text is longer than 50 characters
+            display_text = suggestion['text']
+            if len(display_text) > 50:
+                display_text = display_text[:50] + "..."
             st.markdown(
                 f"""<div style="background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%); padding: 10px; border-radius: 8px; margin: 8px 0; color: #1a1a2e;">
                 <strong>{format_label_name(suggestion['suggested_label'])}</strong><br>
-                <small>"{suggestion['text'][:50]}..."</small>
+                <small>"{display_text}"</small>
                 </div>""",
                 unsafe_allow_html=True,
             )

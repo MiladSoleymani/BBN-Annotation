@@ -1,5 +1,86 @@
 /* BBN Annotation Tool Styles */
 
+/* CSS Variables for theming */
+:root {
+    --bg-patient: #f8f4ff;
+    --bg-clinician: #f0fdf4;
+    --bg-selectable: #f8fafc;
+    --bg-suggestion: #fffbeb;
+    --bg-relation: #eff6ff;
+    --bg-undo: #fef2f2;
+    --bg-count-badge: #e0e7ff;
+    --bg-relations-badge: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-patient: #7c3aed;
+    --text-clinician: #16a34a;
+    --text-relation: #1e40af;
+    --text-count-badge: #4338ca;
+    --border-patient: #8b5cf6;
+    --border-clinician: #22c55e;
+    --border-light: #e2e8f0;
+    --border-suggestion: #fcd34d;
+    --border-relation: #bfdbfe;
+    --border-undo: #fecaca;
+    --border-relations-badge: #93c5fd;
+    --text-undo: #dc2626;
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-patient: #2d2640;
+        --bg-clinician: #1a2f23;
+        --bg-selectable: #1e293b;
+        --bg-suggestion: #3d3520;
+        --bg-relation: #1e2a3d;
+        --bg-undo: #3d2020;
+        --bg-count-badge: #2e3a5f;
+        --bg-relations-badge: linear-gradient(135deg, #1e3a5f 0%, #2a4a6f 100%);
+        --text-primary: #e2e8f0;
+        --text-secondary: #94a3b8;
+        --text-patient: #a78bfa;
+        --text-clinician: #4ade80;
+        --text-relation: #60a5fa;
+        --text-count-badge: #818cf8;
+        --border-patient: #8b5cf6;
+        --border-clinician: #22c55e;
+        --border-light: #334155;
+        --border-suggestion: #b8960a;
+        --border-relation: #3b82f6;
+        --border-undo: #b91c1c;
+        --border-relations-badge: #3b82f6;
+        --text-undo: #f87171;
+    }
+}
+
+/* Streamlit dark theme detection */
+[data-testid="stAppViewContainer"][data-theme="dark"],
+.stApp[data-theme="dark"] {
+    --bg-patient: #2d2640;
+    --bg-clinician: #1a2f23;
+    --bg-selectable: #1e293b;
+    --bg-suggestion: #3d3520;
+    --bg-relation: #1e2a3d;
+    --bg-undo: #3d2020;
+    --bg-count-badge: #2e3a5f;
+    --bg-relations-badge: linear-gradient(135deg, #1e3a5f 0%, #2a4a6f 100%);
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-patient: #a78bfa;
+    --text-clinician: #4ade80;
+    --text-relation: #60a5fa;
+    --text-count-badge: #818cf8;
+    --border-patient: #8b5cf6;
+    --border-clinician: #22c55e;
+    --border-light: #334155;
+    --border-suggestion: #b8960a;
+    --border-relation: #3b82f6;
+    --border-undo: #b91c1c;
+    --border-relations-badge: #3b82f6;
+    --text-undo: #f87171;
+}
+
 /* Reduce default Streamlit spacing */
 .block-container {
     padding-top: 1rem;
@@ -28,18 +109,18 @@ hr {
 
 /* Turn cards - Clean, minimal design */
 .patient-turn {
-    background: #f8f4ff;
+    background: var(--bg-patient);
     padding: 16px 20px;
     border-radius: 8px;
     margin: 4px 0;
-    border-left: 4px solid #8b5cf6;
+    border-left: 4px solid var(--border-patient);
 }
 .clinician-turn {
-    background: #f0fdf4;
+    background: var(--bg-clinician);
     padding: 16px 20px;
     border-radius: 8px;
     margin: 4px 0;
-    border-left: 4px solid #22c55e;
+    border-left: 4px solid var(--border-clinician);
 }
 .speaker-label {
     font-weight: 600;
@@ -47,14 +128,14 @@ hr {
     margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #64748b;
+    color: var(--text-secondary);
 }
-.patient-turn .speaker-label { color: #7c3aed; }
-.clinician-turn .speaker-label { color: #16a34a; }
+.patient-turn .speaker-label { color: var(--text-patient); }
+.clinician-turn .speaker-label { color: var(--text-clinician); }
 .turn-text {
     font-size: 1em;
     line-height: 1.6;
-    color: #1e293b;
+    color: var(--text-primary);
 }
 .annotation-badge {
     display: inline-block;
@@ -74,61 +155,61 @@ hr {
 .annotation-section {
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--border-light);
     font-size: 0.85em;
 }
 
 /* Modal text display */
 .selectable-text {
-    background: #f8fafc;
+    background: var(--bg-selectable);
     padding: 16px;
     border-radius: 8px;
     margin: 10px 0;
-    color: #1e293b;
+    color: var(--text-primary);
     font-size: 1em;
     line-height: 1.7;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-light);
     cursor: text;
     user-select: text;
 }
 
 /* AI suggestion cards */
 .ai-suggestion {
-    background: #fffbeb;
+    background: var(--bg-suggestion);
     padding: 12px;
     border-radius: 8px;
     margin: 8px 0;
-    border: 1px solid #fcd34d;
-    color: #1e293b;
+    border: 1px solid var(--border-suggestion);
+    color: var(--text-primary);
 }
 
 /* Relation items */
 .relation-item {
-    background: #eff6ff;
+    background: var(--bg-relation);
     padding: 10px 14px;
     border-radius: 6px;
     margin: 6px 0;
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--border-relation);
     font-size: 0.9em;
-    color: #1e40af;
+    color: var(--text-relation);
     font-weight: 500;
 }
 .relation-item .rel-arrow {
-    color: #64748b;
+    color: var(--text-secondary);
     margin: 0 8px;
 }
 .relation-item .rel-type {
-    background: #dbeafe;
+    background: var(--bg-relation);
     padding: 2px 8px;
     border-radius: 4px;
-    color: #1e40af;
+    color: var(--text-relation);
 }
 
 /* Undo button styling */
 .undo-btn {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #dc2626;
+    background: var(--bg-undo);
+    border: 1px solid var(--border-undo);
+    color: var(--text-undo);
     padding: 4px 12px;
     border-radius: 6px;
     font-size: 0.85em;
@@ -142,8 +223,8 @@ hr {
 
 /* Annotation count badge */
 .count-badge {
-    background: #e0e7ff;
-    color: #4338ca;
+    background: var(--bg-count-badge);
+    color: var(--text-count-badge);
     padding: 2px 8px;
     border-radius: 10px;
     font-size: 0.8em;
@@ -153,12 +234,12 @@ hr {
 /* Relations badge */
 .relations-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #1e40af;
+    background: var(--bg-relations-badge);
+    color: var(--text-relation);
     padding: 8px 14px;
     border-radius: 20px;
     font-size: 0.85em;
     font-weight: 600;
-    border: 1px solid #93c5fd;
+    border: 1px solid var(--border-relations-badge);
     margin-top: 0;
 }

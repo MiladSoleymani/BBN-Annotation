@@ -24,19 +24,24 @@ def render_turn_card(turn, schema, show_annotations=True):
         "spikes_stage"
     )
 
-    # Build highlighted text
+    # Build highlighted text using position-based insertion
     highlighted_text = text
     if show_annotations and spans:
+        # Sort by start position in reverse to avoid index shifting
         sorted_spans = sorted(spans, key=lambda x: x.get("start", 0), reverse=True)
         for span in sorted_spans:
             label = span.get("label", "")
-            color = get_label_color(label, schema)
-            span_text = span.get("text", "")
-            if span_text in highlighted_text:
-                highlighted_text = highlighted_text.replace(
-                    span_text,
-                    f'<span class="highlight-span" style="background-color: {color};" title="{format_label_name(label)}">{span_text}</span>',
-                    1,
+            color = get_label_color(label)
+            start = span.get("start", 0)
+            end = span.get("end", len(text))
+
+            # Validate positions
+            if 0 <= start < end <= len(highlighted_text):
+                span_text = highlighted_text[start:end]
+                highlighted_text = (
+                    highlighted_text[:start]
+                    + f'<span class="highlight-span" style="background-color: {color};" title="{format_label_name(label)}">{span_text}</span>'
+                    + highlighted_text[end:]
                 )
 
     # Render the turn with clean styling
@@ -50,7 +55,7 @@ def render_turn_card(turn, schema, show_annotations=True):
     """
 
     if spikes_stage and speaker == "clinician":
-        spikes_color = get_label_color(spikes_stage, schema)
+        spikes_color = get_label_color(spikes_stage)
         html += f'<span class="annotation-badge" style="background-color: {spikes_color};">SPIKES: {spikes_stage.upper()}</span><br><br>'
 
     html += f'<div class="turn-text">{highlighted_text}</div>'
@@ -60,7 +65,7 @@ def render_turn_card(turn, schema, show_annotations=True):
         html += '<div class="annotation-section">'
         for span in spans:
             label = span.get("label", "")
-            color = get_label_color(label, schema)
+            color = get_label_color(label)
             html += f'<span class="annotation-badge" style="background-color: {color}; color: #1a1a2e;">{format_label_name(label)}</span> '
         html += "</div>"
 
