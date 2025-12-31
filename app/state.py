@@ -68,8 +68,36 @@ def set_open_dialog(turn_id):
     st.session_state.open_dialog_turn_id = turn_id
 
 
-def close_dialog():
-    """Close the current dialog."""
+def close_dialog(turn_id=None):
+    """Close the current dialog and clear related cache."""
+    # Get turn_id if not provided
+    if turn_id is None:
+        turn_id = st.session_state.open_dialog_turn_id
+
+    # Clear modal-specific keys
+    if turn_id is not None:
+        keys_to_clear = [
+            f"modal_text_{turn_id}",
+            f"modal_label_{turn_id}",
+            f"modal_spikes_{turn_id}",
+            f"rel_from_{turn_id}",
+            f"rel_to_{turn_id}",
+        ]
+        for key in keys_to_clear:
+            if key in st.session_state:
+                del st.session_state[key]
+
+    # Clear AI suggestions for this turn
+    if turn_id is not None:
+        st.session_state.ai_suggestions = [
+            s for s in st.session_state.ai_suggestions
+            if s.get("turn_id") != turn_id
+        ]
+
+    # Clear undo history when closing modal
+    st.session_state.undo_history = []
+
+    # Close the dialog
     st.session_state.open_dialog_turn_id = None
 
 
