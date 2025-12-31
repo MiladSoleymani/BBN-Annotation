@@ -101,3 +101,7 @@ OPENAI_MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
 
 # Anthropic models
 ANTHROPIC_MODELS = ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
+
+# Database settings
+USE_DATABASE = True  # Set to False to use JSON files only
+DB_PATH = DATA_DIR / "annotations.db"

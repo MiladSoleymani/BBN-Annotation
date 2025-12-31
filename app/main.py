@@ -14,11 +14,16 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from config import STYLES_PATH
+from config import STYLES_PATH, USE_DATABASE
 from state import init_session_state
-from services import load_schema
+from services.data_service import load_schema
 from components import render_sidebar, render_turn_card
 from components.dialog import annotation_dialog
+
+# Initialize database if enabled
+if USE_DATABASE:
+    from database import init_db
+    init_db()
 
 
 def load_styles():
